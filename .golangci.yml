@@ -9,8 +9,8 @@ linters:
   disable-all: true
   enable:
     - deadcode
-    - errcheck
     - gofmt
+    - errcheck
     - gosimple
     - ineffassign
     - misspell
@@ -19,4 +19,17 @@ linters:
     - unconvert
     - unused
     - varcheck
-    - vet
+    - govet
+
+linters-settings:
+  gofmt:
+    simplify: true
+  govet:
+    check-shadowing: true
+    settings:
+      printf:
+        funcs:
+          - (github.com/golangci/golangci-lint/pkg/logutils.Log).Infof
+          - (github.com/golangci/golangci-lint/pkg/logutils.Log).Warnf
+          - (github.com/golangci/golangci-lint/pkg/logutils.Log).Errorf
+          - (github.com/golangci/golangci-lint/pkg/logutils.Log).Fatalf

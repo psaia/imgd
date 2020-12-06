@@ -3,6 +3,7 @@ package fs
 import (
 	"bufio"
 	"encoding/base64"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -78,4 +79,19 @@ func DirectoryPhotos(dir string) ([]string, error) {
 
 	}
 	return paths, nil
+}
+
+// CreateDirectoryIfNew will create a new directory only if one didn't exist before it.
+func CreateDirectoryIfNew(p string) (string, error) {
+	fullPath, err := filepath.Abs(p)
+	if err != nil {
+		return "", err
+	}
+	if _, err := os.Stat(fullPath); !os.IsNotExist(err) {
+		return "", fmt.Errorf("Directory already exists: %s", fullPath)
+	}
+	if err := os.MkdirAll(fullPath, 0755); err != nil {
+		return "", err
+	}
+	return fullPath, nil
 }

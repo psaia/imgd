@@ -1,21 +1,15 @@
 # imgd
 
-Behind the scenes photography services such as Flickr, Instagram, 500px, Imgur, etc. use cloud providers such as
-Google Cloud and Amazon Web Services to store your photos.
+`imgd` is a BYOC (bring your own cloud) utility to store, host, and manage your photos.
 
-`imgd` takes the the middle man out and lets you bring your own cloud provider which puts you in full control of
-your photos.
+## Features
 
-Features:
+- Really fast
 
-- Enable photo availability to all of your computers. No need for expensive Apple|Google cloud storage or hard drives.
-- imgd will store the photo in full resolution along with creating various sizes
-- CLI album management
-- Very fast upload/download
-
-* Upload
+## Usage
 
 ```bash
+
 # Create a new directory or update if already exists.
 imgd album create silent-escapades
     --title="Silent Escapades in San Francisco" \
@@ -30,15 +24,17 @@ imgd album sync silent-escapades ./folder-with-photos
 # List all photos in album.
 imgd album expand silent-escapades
 
+# Download entire album to a new directory.
+imgd album expand silent-escapades ./my-gallery
+
+# Remove a gallery of photos.
+imgd album remove silent-escapades
+
+######################################################
+## Below are still WIP:
+
 # Generate a sharable gallery page.
 imgd album publish silent-escapades --from-template dark
-
-# Download entire album.
-imgd album expand silent-escapades
-
-# Remove a gallery and optionally all photos inside. Otherwise,
-# photos are added to added to Unknown gallery.
-imgd album remove silent-escapades --rm-photos
 
 # Remove a photo by its hash.
 imgd photo remove [photo hash]
