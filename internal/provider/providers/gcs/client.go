@@ -59,7 +59,7 @@ func (c *Client) UploadFile(ctx context.Context, filename string, media io.Reade
 	if err := wc.Close(); err != nil {
 		return "", fmt.Errorf("Writer.Close: %v", err)
 	}
-	return imgURL(c.lakeName, path.Base(filename)), nil
+	return fmt.Sprintf("%s/%s", c.GetLakeBaseURL(), path.Base(filename)), nil
 }
 
 // DownloadFile will download a specific file by its name.
@@ -141,6 +141,11 @@ func (c *Client) SetLakeName(name string) {
 	c.lakeName = name
 }
 
+// GetLakeBaseURL sets a new lakeName
+func (c *Client) GetLakeBaseURL() string {
+	return fmt.Sprintf("https://%s.storage.googleapis.com", c.lakeName)
+}
+
 // Pull the project name from the service account credentials file.
 func getProjectIDFromCredentialsFile(credFile string) (string, error) {
 	jsonFile, err := os.Open(credFile)
@@ -167,8 +172,4 @@ func getProjectIDFromCredentialsFile(credFile string) (string, error) {
 func isConnectivityErr(err error) bool {
 	_, ok := err.(net.Error)
 	return ok
-}
-
-func imgURL(bucketName string, filename string) string {
-	return fmt.Sprintf("http://%s.storage.googleapis.com/%s", bucketName, filename)
 }

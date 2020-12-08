@@ -1,0 +1,107 @@
+<!doctype html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>{{.Photo.Name}}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta property="og:title" content="{{.Photo.Name}}">
+    <meta property="og:url" content="{{getPhotoPublicURL .Photo .Size}}">
+
+    <style>
+        body, :root {
+            height: 100%;
+            font-family: Helvetica Neue,Helvetica,Arial,sans-serif; 
+        }
+        body {
+            padding: 4%;
+            margin: 0;
+            box-sizing: border-box;
+        }
+        .photo {
+            top: 50px;
+            left: 50px;
+            right: 50px;
+            bottom: 50px;
+            position: absolute;
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center center;
+            image-rendering: high-quality;
+        }
+        .on-photo .links,
+        .on-photo h3 {
+            opacity: 0;
+        }
+        .links, h3 {
+            transition: opacity 1s;
+        }
+        .links {
+            margin: 0;
+            padding: 0;
+            position: absolute;
+            bottom: 5px;
+            right: 5px;
+            color: #999;
+        }
+        .links:hover {
+            color: #111;
+        }
+        .links li {
+            display: inline-block;
+            list-style: none;
+            margin-left: 5px;
+        }
+        .links a {
+            text-decoration: none;
+            font-size: 13px;
+        }
+        .links a:hover {
+            text-decoration: underline;
+        }
+        h3 {
+            font-size: 13px;
+            position: absolute;
+            left: 15px;
+            top: 15px;
+            margin: 0;
+            padding: 0;
+            font-weight: normal;
+        }
+        h3 a {
+            text-decoration: none;
+        }
+        h3 a:before {
+            content: '« ';
+        }
+    </style>
+</head>
+
+<body>
+    <main class="photo" style="background-image: url('{{getPhotoRawURL .Photo .Size}}')"></main>
+
+    <h3 class="album-name">
+        <a title="Go back to gallery" href="{{.AlbumURL}}">{{.Album.Name}}</a>
+    </h3>
+
+    <ul class="links">
+        <li>Download:</li>
+        <li><a title="Download small version" href="{{getPhotoRawURL .Photo "small"}}">S</a></li>
+        <li><a title="Download medium version" href="{{getPhotoRawURL .Photo "medium"}}">M</a></li>
+        <li><a title="Download large version" href="{{getPhotoRawURL .Photo "large"}}">L</a></li>
+        <li><a title="Download full resolution version" href="{{getPhotoRawURL .Photo "original"}}">F</a></li>
+    </ul>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            var p = document.getElementsByClassName("photo")[0];
+            p.addEventListener("mouseenter", function() {
+                document.body.className = "on-photo";
+            });
+            p.addEventListener("mouseleave", function() {
+                document.body.className = "";
+            });
+        });
+    </script>
+</body>
+</html>

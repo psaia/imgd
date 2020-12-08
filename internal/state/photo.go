@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"path"
+	"path/filepath"
+	"strings"
 
 	"github.com/h2non/filetype"
 	"github.com/h2non/filetype/types"
@@ -14,7 +16,6 @@ import (
 type Photo struct {
 	Name      string `json:"name"`
 	Extension string `json:"ext"`
-	URL       string `json:"url"`
 	Hash      string `json:"hash"`
 }
 
@@ -24,25 +25,44 @@ type PhotoSizeType string
 var (
 	// PhotoSizeTypeOriginal is the full size image.
 	PhotoSizeTypeOriginal PhotoSizeType = "original"
+
 	// PhotoSizeTypeThumb is the thumbnail.
 	PhotoSizeTypeThumb PhotoSizeType = "thumbnail"
+
 	// PhotoSizeTypeThumbCropped is the thumbnail cropped.
 	PhotoSizeTypeThumbCropped PhotoSizeType = "thumbnail-cropped"
+
 	// PhotoSizeTypeSmall is the small image.
 	PhotoSizeTypeSmall PhotoSizeType = "small"
+
 	// PhotoSizeTypeMedium is the small image.
 	PhotoSizeTypeMedium PhotoSizeType = "medium"
+
 	// PhotoSizeTypeLarge is the small image.
 	PhotoSizeTypeLarge PhotoSizeType = "large"
 )
 
-// FormattedFileName formats the name based on the photo size.
-func (p Photo) FormattedFileName(size PhotoSizeType) string {
+// RawFilename formats the name based on the photo size.
+func (p Photo) RawFilename(size PhotoSizeType) string {
 	if size == PhotoSizeTypeOriginal {
 		return fmt.Sprintf("%s.%s", p.Hash, p.Extension)
 	}
-	dim := GetPhotoDim(size)
-	return fmt.Sprintf("%s-%d-%d.%s", p.Hash, dim[0], dim[1], p.Extension)
+	return fmt.Sprintf("%s-%s.%s", p.Hash, string(size), "jpg")
+}
+
+// PublicSlug generates the html version of a file.
+func (p Photo) PublicSlug(a Album, size PhotoSizeType) string {
+	return fmt.Sprintf("%s/%s-%s.html", a.ID, p.Hash, string(size))
+}
+
+// PublicURL generates the html version of a file.
+func (p Photo) PublicURL(bucketURL string, a Album, size PhotoSizeType) string {
+	return fmt.Sprintf("%s/%s", bucketURL, p.PublicSlug(a, size))
+}
+
+// PublicURLRaw generates the url for the actual image file.
+func (p Photo) PublicURLRaw(bucketURL string, size PhotoSizeType) string {
+	return fmt.Sprintf("%s/%s", bucketURL, p.RawFilename(size))
 }
 
 // MarshalPhotoFromSrc will create a photo object from a src path. If the
@@ -61,7 +81,7 @@ func (s State) MarshalPhotoFromSrc(src string) (Photo, bool, error) {
 	}
 	name := path.Base(src)
 	return Photo{
-		Name:      name[0 : len(name)-len(ft.Extension)],
+		Name:      strings.TrimSuffix(name, filepath.Ext(name)),
 		Extension: ft.Extension,
 		Hash:      hash,
 	}, false, nil
@@ -122,8 +142,8 @@ func GetPhotoDim(sizeType PhotoSizeType) []int {
 		PhotoSizeTypeThumb:        {250, 250, 0},
 		PhotoSizeTypeThumbCropped: {250, 250, 1},
 		PhotoSizeTypeSmall:        {650, 650, 0},
-		PhotoSizeTypeMedium:       {1100, 1100, 0},
-		PhotoSizeTypeLarge:        {3500, 5000, 0},
+		PhotoSizeTypeMedium:       {1400, 1400, 0},
+		PhotoSizeTypeLarge:        {3500, 3500, 0},
 	}
 	return sizes[sizeType]
 }

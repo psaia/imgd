@@ -3,3 +3,4 @@
 *.state
 .idea
 /imgd
+.envrc

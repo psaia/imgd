@@ -17,6 +17,7 @@ import (
 
 var namespace = uuid.MustParse("00000000-0000-0000-0000-000000000000")
 
+// IsPhoto determines if a file is actually a photo.
 func IsPhoto(file string) (bool, error) {
 	f, err := os.Open(file)
 	if err != nil {
@@ -30,6 +31,7 @@ func IsPhoto(file string) (bool, error) {
 	return filetype.IsImage(head), nil
 }
 
+// Hash generates a unique hash for a given file.
 func Hash(file string) (string, error) {
 	f, err := os.Open(file)
 	if err != nil {
@@ -45,16 +47,19 @@ func Hash(file string) (string, error) {
 	return SHAHash(hash), nil
 }
 
+// SHAHash generates a SHA1 hash.
 func SHAHash(data []byte) string {
 	u := uuid.NewSHA1(namespace, data)
 	return u.String()
 }
 
+// FuzzyHash implements the image hashing algo which ultimately gets sha'd.
 func FuzzyHash(s string) []byte {
 	n := len(s)
 	return []byte(strconv.Itoa(n) + s[:5] + s[(n/2)-15:(n/2)+15] + s[n-15:n])
 }
 
+// DirectoryPhotos lists all photos within a directory.
 func DirectoryPhotos(dir string) ([]string, error) {
 	files, err := ioutil.ReadDir(dir)
 	if err != nil {

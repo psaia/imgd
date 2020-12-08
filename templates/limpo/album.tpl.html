@@ -1,0 +1,65 @@
+<!doctype html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>{{.Album.Name}}</title>
+    <meta name="description" content="{{.Album.Description}}">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <meta property="og:title" content="{{.Album.Name}}">
+    <meta property="og:url" content="{{.AlbumURL}}">
+
+    <style>
+        body, :root {
+            height: 100%;
+            font-family: Helvetica Neue,Helvetica,Arial,sans-serif; 
+        }
+        body {
+            padding: 4%;
+            margin: 0;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        main {
+            display: flex;
+            flex-direction: row;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            align-content: flex-start;
+        }
+        img {
+            width: 125px;
+            height: 125px;
+            margin: 5px;
+            display: block;
+            image-rendering: high-quality;
+        }
+        small {
+            position: absolute;
+            left: 10px;
+            bottom: 10px;
+            font-size: 12px;
+        }
+        small a {
+            text-decoration: none;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>{{.Album.Name}}</h1>
+    <main>
+    {{range .Photos}}
+        <a href="{{getPhotoPublicURL . "large"}}">
+            <img src="{{getPhotoRawURL . "thumbnail-cropped"}}" />
+        </a>
+    {{end}}
+    </main>
+    <small><a href="/index.html">All Albums</a></small>
+</body>
+</html>

@@ -1,6 +1,7 @@
 package state
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -25,6 +26,16 @@ func NewAlbum() Album {
 	}
 }
 
+// PublicSlug is the slug at the end of the URL.
+func (a Album) PublicSlug() string {
+	return fmt.Sprintf("%s.html", a.ID)
+}
+
+// PublicURL is the full HTML url for this album.
+func (a Album) PublicURL(bucketURL string) string {
+	return fmt.Sprintf("%s/%s", bucketURL, a.PublicSlug())
+}
+
 // AddAlbum adds a new album.
 func (s State) AddAlbum(a Album) State {
 	s.Albums = append(s.Albums, a)
@@ -32,9 +43,9 @@ func (s State) AddAlbum(a Album) State {
 }
 
 // GetAlbum will return an album if it exists.
-func (s State) GetAlbum(name string) *Album {
+func (s State) GetAlbum(id string) *Album {
 	for _, album := range s.Albums {
-		if album.Name == name || album.ID == name {
+		if album.ID == id {
 			return &album
 		}
 	}

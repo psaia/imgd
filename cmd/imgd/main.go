@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"runtime"
+	"strconv"
 	"strings"
 
 	"github.com/psaia/imgd/internal/provider"
@@ -72,14 +74,39 @@ func main() {
 						Action: albumList,
 					},
 					{
-						Name:   "create",
-						Usage:  "create a new album",
+						Name:  "create",
+						Usage: "create a new album",
+						Flags: []cli.Flag{
+							&cli.StringFlag{
+								Name:     "title",
+								Value:    "",
+								Usage:    "Provide a title for your photo album",
+								Required: true,
+							},
+							&cli.StringFlag{
+								Name:  "description",
+								Value: "",
+								Usage: "Provide a description for your photo album",
+							},
+						},
 						Action: albumCreate,
 					},
 					{
 						Name:   "sync",
 						Usage:  "sync all photos within a folder to an album",
 						Action: albumSync,
+						Flags: []cli.Flag{
+							&cli.StringFlag{
+								Name:  "title",
+								Value: "",
+								Usage: "Update the title of the photo album",
+							},
+							&cli.StringFlag{
+								Name:  "description",
+								Value: "",
+								Usage: "Update the description of the photo album",
+							},
+						},
 					},
 					{
 						Name:   "remove",
@@ -221,4 +248,14 @@ func provisionState(ctx context.Context, client provider.Client) (state.State, c
 
 func isEmptyState(st state.State) bool {
 	return st.ID == ""
+}
+
+func processingConcurrency() int {
+	concurrency := runtime.NumCPU()
+	if os.Getenv("CONCURRENCY") != "" {
+		if i, err := strconv.Atoi(os.Getenv("CONCURRENCY")); err == nil {
+			return i
+		}
+	}
+	return concurrency
 }

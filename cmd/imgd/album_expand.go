@@ -3,7 +3,9 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 
+	"github.com/psaia/imgd/internal/state"
 	"github.com/urfave/cli/v2"
 )
 
@@ -29,7 +31,7 @@ func albumExpand(c *cli.Context) error {
 	for _, hash := range album.Photos {
 		photo := st.GetPhoto(hash)
 		if photo != nil {
-			prettyLogMinimal("Name: %s\nID: %s\nURL: %s\n", photo.Name, photo.Hash, photo.URL)
+			fmt.Println(prettyLogStr("Name: %s\nID: %s\nURL: %s\n", photo.Name, photo.Hash, photo.PublicURL(client.GetLakeBaseURL(), *album, state.PhotoSizeTypeLarge)))
 		}
 	}
 	return nil

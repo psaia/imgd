@@ -8,44 +8,31 @@ import (
 	"github.com/fatih/color"
 )
 
+func logLead(s string) string {
+	yellow := color.New(color.FgYellow).SprintFunc()
+	return fmt.Sprintf("%s%s", yellow("[imgd]: "), s)
+}
+
 func prettyLog(f string, v ...interface{}) {
-	if _, err := fmt.Printf(prettyLogStr(f, v)); err != nil {
+	if _, err := fmt.Println(logLead(prettyLogStr(f, v...))); err != nil {
 		log.Fatal(err)
 	}
 }
 
 func prettyLogStr(f string, v ...interface{}) string {
-	yellow := color.New(color.FgYellow).SprintFunc()
 	blue := color.New(color.FgBlue).SprintFunc()
-	lead := yellow("[imgd]: ") + blue(f)
-	if len(v) > 0 {
-		return fmt.Sprintf(lead+"\n", v...)
-	}
-	return fmt.Sprintf(lead + "\n")
+	return fmt.Sprintf(blue(f)+"\n", v...)
 }
 
 func prettyError(f string, v ...interface{}) {
-	if _, err := fmt.Printf(prettyErrorStr(f, v)); err != nil {
+	if _, err := fmt.Printf(logLead(prettyErrorStr(f, v...))); err != nil {
 		log.Fatal(err)
 	}
 }
 
 func prettyErrorStr(f string, v ...interface{}) string {
-	yellow := color.New(color.FgYellow).SprintFunc()
 	red := color.New(color.FgRed).SprintFunc()
-	lead := yellow("[imgd]: ") + red(f)
-	if len(v) > 0 {
-		return fmt.Sprintf(lead+"\n", v...)
-	}
-	return fmt.Sprintf(lead + "\n")
-}
-
-func prettyLogMinimal(f string, v ...interface{}) {
-	blue := color.New(color.FgBlue).SprintFunc()
-	lead := blue(f)
-	if _, err := fmt.Printf(lead+"\n", v...); err != nil {
-		log.Fatal(err)
-	}
+	return fmt.Sprintf(red(f)+"\n", v...)
 }
 
 func prettyDebug(f string, v ...interface{}) {

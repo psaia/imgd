@@ -15,6 +15,7 @@ import (
 	"github.com/disintegration/imaging"
 	"github.com/manifoldco/promptui"
 	"github.com/psaia/imgd/internal/fs"
+	"github.com/psaia/imgd/internal/gallery"
 	"github.com/psaia/imgd/internal/provider"
 	"github.com/psaia/imgd/internal/state"
 	"github.com/urfave/cli/v2"
@@ -48,12 +49,18 @@ func albumSync(c *cli.Context) error {
 	if album == nil {
 		return fmtErr(errCodeMisc, errors.New("Album does not exist"))
 	}
+	if c.String("title") != "" {
+		album.Name = c.String("title")
+	}
+	if c.String("description") != "" {
+		album.Description = c.String("description")
+	}
 	folder := c.Args().Get(1)
 	files, err := fs.DirectoryPhotos(folder)
 	if err != nil {
 		return fmtErr(errCodeMisc, err)
 	}
-	creating, removing, err := syncPrep(files, st)
+	creating, removing, err := syncPrep(files, st, *album)
 	if err != nil {
 		return fmtErr(errCodeMisc, err)
 	}
@@ -72,7 +79,7 @@ func albumSync(c *cli.Context) error {
 		return nil
 	}()
 	for _, err := range errs {
-		prettyError("Encountered error during removal: %s", err)
+		prettyError("Encountered error during sync: %s", err)
 	}
 	if exitCode == nil {
 		prettyLog("%s has been synced", album.Name)
@@ -91,7 +98,8 @@ func syncResizeTask(ctx context.Context, errc chan<- error, stream <-chan albumS
 					errc <- err
 					continue
 				}
-				job.dstFilePath = fmt.Sprintf("%s/%s", dir, job.photo.FormattedFileName(job.size))
+				prettyDebug("%s: Resizing started", job.photo.RawFilename(job.size))
+				job.dstFilePath = fmt.Sprintf("%s/%s", dir, job.photo.RawFilename(job.size))
 				src, err := imaging.Open(job.srcFilePath, imaging.AutoOrientation(true))
 				if err != nil {
 					errc <- err
@@ -108,6 +116,7 @@ func syncResizeTask(ctx context.Context, errc chan<- error, stream <-chan albumS
 					errc <- err
 					continue
 				}
+				prettyDebug("%s: Resizing completed", job.photo.RawFilename(job.size))
 			} else {
 				job.dstFilePath = job.srcFilePath
 			}
@@ -132,12 +141,13 @@ func syncUploadTask(ctx context.Context, errc chan<- error, client provider.Clie
 				errc <- err
 				continue
 			}
-			url, err := client.UploadFile(ctx, job.photo.FormattedFileName(job.size), r)
+			prettyDebug("%s: Uploading started", job.photo.RawFilename(job.size))
+			_, err = client.UploadFile(ctx, job.photo.RawFilename(job.size), r)
 			if err != nil {
 				errc <- err
 				continue
 			}
-			job.photo.URL = url
+			prettyDebug("%s: Uploading completed", job.photo.RawFilename(job.size))
 			select {
 			case <-ctx.Done():
 				prettyDebug("upload pipeline task breaking because expired")
@@ -155,6 +165,7 @@ func syncCleanupTask(ctx context.Context, errc chan<- error, stream <-chan album
 		defer close(out)
 		for job := range stream {
 			if job.size != state.PhotoSizeTypeOriginal { // Only remove an image if it has a custom w/h. Otherwise, it's the original.
+				prettyDebug("%s: Removing", job.dstFilePath)
 				if err := os.RemoveAll(path.Dir(job.dstFilePath)); err != nil {
 					errc <- err
 					continue
@@ -171,7 +182,7 @@ func syncCleanupTask(ctx context.Context, errc chan<- error, stream <-chan album
 	return out
 }
 
-func syncPrep(files []string, st state.State) ([]albumSyncJob, []albumSyncJob, error) {
+func syncPrep(files []string, st state.State, a state.Album) ([]albumSyncJob, []albumSyncJob, error) {
 	forRemoval := make([]albumSyncJob, 0)
 	forCreation := make([]albumSyncJob, 0)
 	preExistingHash := make(map[string]state.Photo)
@@ -192,7 +203,7 @@ func syncPrep(files []string, st state.State) ([]albumSyncJob, []albumSyncJob, e
 			}
 		}
 	}
-	for hash := range st.Hashes {
+	for _, hash := range a.Photos {
 		if photo, exists := preExistingHash[hash]; !exists {
 			for _, size := range state.GetPhotoSizeTypes() {
 				forRemoval = append(forRemoval, albumSyncJob{
@@ -207,19 +218,30 @@ func syncPrep(files []string, st state.State) ([]albumSyncJob, []albumSyncJob, e
 }
 
 func syncPrompt(forCreation, forRemoval []albumSyncJob) bool {
-	addList := "Nothing to add."
-	removeList := "Nothing to remove."
-	for _, job := range forCreation {
-		if job.size == state.PhotoSizeTypeOriginal {
-			addList = fmt.Sprintf("%s+ %s [%s]\n", addList, job.photo.Hash, job.photo.Name)
+	var addList, removeList string
+
+	if len(forCreation) > 0 {
+		for _, job := range forCreation {
+			if job.size == state.PhotoSizeTypeOriginal {
+				addList = fmt.Sprintf("%s+ %s [%s]\n", addList, job.photo.Hash, job.photo.Name)
+			}
 		}
+	} else {
+		addList = "Nothing to add."
 	}
-	for _, job := range forRemoval {
-		if job.size == state.PhotoSizeTypeOriginal {
-			removeList = fmt.Sprintf("%s- %s [%s]\n", removeList, job.photo.Hash, job.photo.Name)
+	if len(forRemoval) > 0 {
+		for _, job := range forRemoval {
+			if job.size == state.PhotoSizeTypeOriginal {
+				removeList = fmt.Sprintf("%s- %s [%s]\n", removeList, job.photo.Hash, job.photo.Name)
+			}
 		}
+	} else {
+		removeList = "Nothing to remove."
 	}
 	prettyLog("\nAdding:\n%s\n\nRemoving:\n%s\n", addList, removeList)
+	if len(forCreation) == 0 && len(forRemoval) == 0 {
+		fmt.Println(prettyLogStr("There are not updates but if you proceed all html templates will regenerate."))
+	}
 	prompt := promptui.Prompt{
 		Label:     fmt.Sprintf("Are you sure you would like to proceed"),
 		IsConfirm: true,
@@ -233,8 +255,9 @@ func syncRun(ctx context.Context, client provider.Client, album state.Album, st 
 	var mu sync.Mutex
 	errors := make([]error, 0)
 	errc := make(chan error)
-	maxWorkers := 20
+	maxWorkers := processingConcurrency()
 	sem := semaphore.NewWeighted(int64(maxWorkers))
+	prettyDebug("Sync concurrency set to %d", maxWorkers)
 
 	wg.Add(1) // Resolves when errors chan is closed.
 
@@ -256,6 +279,7 @@ func syncRun(ctx context.Context, client provider.Client, album state.Album, st 
 			defer sem.Release(1)
 			jobStream := make(chan albumSyncJob, 1)
 			jobStream <- j
+			prettyDebug("%s: Processing started", j.photo.Name)
 			stream := syncCleanupTask(
 				ctx,
 				errc,
@@ -267,6 +291,7 @@ func syncRun(ctx context.Context, client provider.Client, album state.Album, st 
 				))
 			select {
 			case job := <-stream:
+				prettyDebug("%s: Processing started", job.photo.Name)
 				// Only the original size photos need to be persisted.
 				if job.size == state.PhotoSizeTypeOriginal {
 					mu.Lock()
@@ -281,15 +306,23 @@ func syncRun(ctx context.Context, client provider.Client, album state.Album, st 
 	if err := sem.Acquire(ctx, int64(maxWorkers)); err != nil {
 		prettyDebug("Failed to acquire semaphore: %v", err)
 	}
-
 	for _, job := range forRemoval {
-		if err := client.RemoveFile(ctx, job.photo.FormattedFileName(job.size)); err != nil {
+		if err := client.RemoveFile(ctx, job.photo.RawFilename(job.size)); err != nil {
 			errors = append(errors, fmt.Errorf("Encountered error while removing photo from storage: %v", err))
-			continue
+		}
+		if err := client.RemoveFile(ctx, job.photo.PublicSlug(album, job.size)); err != nil {
+			errors = append(errors, fmt.Errorf("Encountered error while removing photo HTML template from storage: %v", err))
 		}
 		if job.size == state.PhotoSizeTypeOriginal {
 			st = st.RemovePhotoFromAlbum(album, job.photo)
 			st = st.RemovePhotoSafe(job.photo)
+		}
+		prettyDebug("Removed photo: %s", job.photo.Name)
+	}
+	album = *(st.GetAlbum(album.ID))
+	if errs := gallery.CreateTemplatesFromState(ctx, client, st, album, "", ""); len(errs) > 0 {
+		for _, e := range errs {
+			errc <- e
 		}
 	}
 	close(errc)

@@ -25,9 +25,9 @@ func albumList(c *cli.Context) error {
 		prettyLog("There are no albums to list.")
 		return nil
 	}
-	prettyLog(fmt.Sprintf("All albums:\n\n"))
+	prettyLog("All albums:")
 	for i, a := range st.Albums {
-		prettyLog(fmt.Sprintf("%d. %s (%d)\n  [%s]", i+1, a.Name, len(a.Photos), a.Description))
+		fmt.Printf(prettyLogStr("%d. %s  %s  [%d photos]  %s", i+1, a.ID, a.Name, len(a.Photos), a.PublicURL(client.GetLakeBaseURL())))
 	}
 	return nil
 }

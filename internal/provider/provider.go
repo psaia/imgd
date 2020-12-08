@@ -26,6 +26,7 @@ type Provider interface {
 type Client interface {
 	FindLakeName(ctx context.Context) (string, error)
 	GetLakeName() string
+	GetLakeBaseURL() string
 	SetLakeName(name string)
 	UploadFile(ctx context.Context, file string, media io.Reader) (string, error)
 	DownloadFile(ctx context.Context, file string) ([]byte, error)

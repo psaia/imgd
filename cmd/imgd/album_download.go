@@ -71,7 +71,7 @@ func albumDownloadJobs(st state.State, album state.Album, dirPath string) []albu
 		if photo != nil {
 			jobs = append(jobs, albumDownloadJob{
 				photo:    *photo,
-				filename: photo.FormattedFileName(state.PhotoSizeTypeOriginal),
+				filename: photo.RawFilename(state.PhotoSizeTypeOriginal),
 				dstPath:  filepath.Join(dirPath, fmt.Sprintf("%s.%s", photo.Name, photo.Extension)),
 			})
 		}

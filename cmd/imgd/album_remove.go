@@ -9,6 +9,7 @@ import (
 
 	"github.com/briandowns/spinner"
 	"github.com/manifoldco/promptui"
+	"github.com/psaia/imgd/internal/gallery"
 	"github.com/psaia/imgd/internal/provider"
 	"github.com/psaia/imgd/internal/state"
 	"github.com/urfave/cli/v2"
@@ -118,11 +119,16 @@ func albumRemoveRun(ctx context.Context, album state.Album, st state.State, clie
 		}
 		go func(j albumRemoveJob) {
 			defer sem.Release(1)
-			if err := client.RemoveFile(ctx, j.photo.FormattedFileName(j.size)); err != nil && err != provider.ErrNotExist {
+			if err := client.RemoveFile(ctx, j.photo.RawFilename(j.size)); err != nil && err != provider.ErrNotExist {
 				mu.Lock()
 				errors = append(errors, err)
 				mu.Unlock()
 				return
+			}
+			if err := client.RemoveFile(ctx, j.photo.PublicSlug(album, j.size)); err != nil {
+				mu.Lock()
+				errors = append(errors, err)
+				mu.Unlock()
 			}
 			if j.size == state.PhotoSizeTypeOriginal {
 				mu.Lock()
@@ -134,6 +140,18 @@ func albumRemoveRun(ctx context.Context, album state.Album, st state.State, clie
 	}
 	if err := sem.Acquire(ctx, int64(maxWorkers)); err != nil {
 		prettyDebug("Failed to acquire semaphore: %v", err)
+	}
+	if err := client.RemoveFile(ctx, album.PublicSlug()); err != nil {
+		errors = append(errors, err)
+	}
+	// Regenerate the index file.
+	if err := gallery.CreateIndexTemplate(ctx, gallery.CreateIndexOptions{
+		ThemeName: "",
+		TplDir:    "",
+		Client:    client,
+		St:        st,
+	}); err != nil {
+		errors = append(errors, err)
 	}
 	return st, errors
 }

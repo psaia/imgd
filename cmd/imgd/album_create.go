@@ -29,7 +29,8 @@ func albumCreate(c *cli.Context) error {
 		s.Start()
 		defer s.Stop()
 		album = state.NewAlbum()
-		album.Name = c.Args().Get(0)
+		album.Name = c.String("title")
+		album.Description = c.String("description")
 		st = st.AddAlbum(album)
 		if _, err := saveState(ctx, client, st); err != nil {
 			return err
@@ -37,7 +38,7 @@ func albumCreate(c *cli.Context) error {
 		return nil
 	}()
 	if exitCode == nil {
-		prettyLog("%s has been created", album.Name)
+		prettyLog("%s has been created. ID: %s", album.Name, album.ID)
 	}
 	return exitCode
 }
