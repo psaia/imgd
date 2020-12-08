@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -23,7 +24,11 @@ func IsPhoto(file string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	defer f.Close()
+	defer func() {
+		if err := f.Close(); err != nil {
+			log.Fatal(err)
+		}
+	}()
 	head := make([]byte, 261)
 	if _, err := f.Read(head); err != nil && err != io.EOF {
 		return false, err
@@ -37,7 +42,11 @@ func Hash(file string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer f.Close()
+	defer func() {
+		if err := f.Close(); err != nil {
+			log.Fatal(err)
+		}
+	}()
 	reader := bufio.NewReader(f)
 	content, err := ioutil.ReadAll(reader)
 	if err != nil {

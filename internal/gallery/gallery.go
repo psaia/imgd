@@ -157,7 +157,7 @@ func CreatePhotoTemplate(ctx context.Context, opts CreatePhotoOptions) error {
 	if err != nil {
 		return err
 	}
-	html, err := RenderPhotoTemplate(tplDir, opts.ThemeName, opts.Album, opts.Photo, opts.Size)
+	html, err := RenderPhotoTemplate(tplDir, opts.ThemeName, opts.Client.GetLakeBaseURL(), opts.Album, opts.Photo, opts.Size)
 	if err != nil {
 		return err
 	}
@@ -207,7 +207,7 @@ func RenderIndexTemplate(tplDir, bucketURL string, st state.State) ([]byte, erro
 }
 
 // RenderPhotoTemplate will create the bytes.
-func RenderPhotoTemplate(tplDir, bucketURL string, a state.Album, p state.Photo, size state.PhotoSizeType) ([]byte, error) {
+func RenderPhotoTemplate(tplDir, theme, bucketURL string, a state.Album, p state.Photo, size state.PhotoSizeType) ([]byte, error) {
 	t, err := template.New("photo.tpl.html").Funcs(renderFuncs(bucketURL, a)).ParseFiles(path.Join(tplDir, "photo.tpl.html"))
 	if err != nil {
 		return nil, err

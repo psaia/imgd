@@ -5,8 +5,9 @@ paying for a service like Drive, Dropbox, or Adobe. Raw storage (such as GCS and
 
 ## Features
 
-- Really fast
+- Use your own CDN/object store instead of a third-party service
 - Static gallery generation with customizable [themes](templates/limpo)
+- It's fast
 
 ## Usage
 
@@ -18,8 +19,8 @@ paying for a service like Drive, Dropbox, or Adobe. Raw storage (such as GCS and
 export IMGD_PROVIDER=gcs # Currently, "gcs" is the only provider available.
 export IMGD_GCS_CREDENTIALS="${HOME}/Desktop/your-service-account-key.json"
 
-# This may be useful to set to 1 if you're working with HUGE files. It defaults to the
-# number of CPUs you have.
+# This may be useful to set to 1 if you're working with HUGE files. Set to something like 10
+# if you're working with many smaller files. It defaults to the number of CPUs you have.
 # export CONCURRENCY=1
 
 # This may be useful if you're doing development.

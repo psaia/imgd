@@ -141,6 +141,11 @@ func syncUploadTask(ctx context.Context, errc chan<- error, client provider.Clie
 				errc <- err
 				continue
 			}
+			defer func() {
+				if err := r.Close(); err != nil {
+					errc <- err
+				}
+			}()
 			prettyDebug("%s: Uploading started", job.photo.RawFilename(job.size))
 			_, err = client.UploadFile(ctx, job.photo.RawFilename(job.size), r)
 			if err != nil {
@@ -291,7 +296,7 @@ func syncRun(ctx context.Context, client provider.Client, album state.Album, st 
 				))
 			select {
 			case job := <-stream:
-				prettyDebug("%s: Processing started", job.photo.Name)
+				prettyDebug("%s: Processing completed", job.photo.Name)
 				// Only the original size photos need to be persisted.
 				if job.size == state.PhotoSizeTypeOriginal {
 					mu.Lock()
