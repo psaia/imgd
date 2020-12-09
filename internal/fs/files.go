@@ -37,6 +37,8 @@ func IsPhoto(file string) (bool, error) {
 }
 
 // Hash generates a unique hash for a given file.
+// @TODO improve by seeking directly to bytes that need to be
+// read and not reading the entire file.
 func Hash(file string) (string, error) {
 	f, err := os.Open(file)
 	if err != nil {

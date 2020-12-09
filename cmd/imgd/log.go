@@ -44,13 +44,13 @@ func prettyDebug(f string, v ...interface{}) {
 		if _, err := fmt.Printf(lead+"\n", v...); err != nil {
 			log.Fatal(err)
 		}
-		PrintMemUsage()
+		printMemUsage()
 	}
 }
 
-// PrintMemUsage outputs the current, total and OS memory being used. As well as the number
+// printMemUsage outputs the current, total and OS memory being used. As well as the number
 // of garage collection cycles completed.
-func PrintMemUsage() {
+func printMemUsage() {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
 	// For info on each, see: https://golang.org/pkg/runtime/#MemStats

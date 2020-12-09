@@ -1,17 +1,18 @@
 # imgd
 
 `imgd` is a BYOC (bring your own cloud) utility to store, host, and manage your photos. This is an alternative to
-paying for a service like Drive, Dropbox, or Adobe. Raw storage (such as GCS and S3) is much cheaper.
+paying for a service like Drive, Dropbox, or Adobe.
 
 ## Features
 
-- Use your own CDN/object store instead of a third-party service
+- Easily store the original/full resolution image while stile having web-friendly versions to share
 - Static gallery generation with customizable [themes](templates/limpo)
 - It's fast
+- Easily manage your images from multiple computers because the state/db is stored in the same bucket as the images
 
 ## Usage
 
-1. Obtain a [service account JSON key](https://console.cloud.google.com/iam-admin/serviceaccounts/create) from Google Cloud (currently GCS is only supported.) with a "Storage Admin" role
+1. Obtain a [service account JSON key](https://console.cloud.google.com/iam-admin/serviceaccounts/create) from Google Cloud (currently GCS is only supported) with a "Storage Admin" role
 2. Set some environmental variables in your environment:
 
 ```bash

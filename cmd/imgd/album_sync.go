@@ -87,104 +87,66 @@ func albumSync(c *cli.Context) error {
 	return exitCode
 }
 
-func syncResizeTask(ctx context.Context, errc chan<- error, stream <-chan albumSyncJob) <-chan albumSyncJob {
-	out := make(chan albumSyncJob)
-	go func() {
-		defer close(out)
-		for job := range stream {
-			if job.size != state.PhotoSizeTypeOriginal {
-				dir, err := ioutil.TempDir("", "imgd-imgcache")
-				if err != nil {
-					errc <- err
-					continue
-				}
-				prettyDebug("%s: Resizing started", job.photo.RawFilename(job.size))
-				job.dstFilePath = fmt.Sprintf("%s/%s", dir, job.photo.RawFilename(job.size))
-				src, err := imaging.Open(job.srcFilePath, imaging.AutoOrientation(true))
-				if err != nil {
-					errc <- err
-					continue
-				}
-				dim := state.GetPhotoDim(job.size)
-				var dst *image.NRGBA
-				if dim[2] == 1 {
-					dst = imaging.Fill(src, dim[0], dim[1], imaging.Center, imaging.Lanczos)
-				} else {
-					dst = imaging.Fit(src, dim[0], dim[1], imaging.Lanczos)
-				}
-				if err = imaging.Save(dst, job.dstFilePath); err != nil {
-					errc <- err
-					continue
-				}
-				prettyDebug("%s: Resizing completed", job.photo.RawFilename(job.size))
-			} else {
-				job.dstFilePath = job.srcFilePath
-			}
-			select {
-			case <-ctx.Done():
-				prettyDebug("upload pipeline task breaking because expired")
-				break
-			case out <- job:
-			}
+func syncResizeTask(ctx context.Context, job *albumSyncJob) error {
+	if job.size != state.PhotoSizeTypeOriginal {
+		dir, err := ioutil.TempDir("", "imgd-imgcache")
+		if err != nil {
+			return err
 		}
-	}()
-	return out
+		prettyDebug("%s: Resizing started", job.photo.RawFilename(job.size))
+		job.dstFilePath = fmt.Sprintf("%s/%s", dir, job.photo.RawFilename(job.size))
+		src, err := imaging.Open(job.srcFilePath, imaging.AutoOrientation(true))
+		if err != nil {
+			prettyDebug("Error occurred while opening src file to be resized (%s): %v", job.srcFilePath, err)
+			return err
+		}
+		dim := state.GetPhotoDim(job.size)
+		var dst *image.NRGBA
+		if dim[2] == 1 {
+			dst = imaging.Fill(src, dim[0], dim[1], imaging.Center, imaging.Lanczos)
+		} else {
+			dst = imaging.Fit(src, dim[0], dim[1], imaging.Lanczos)
+		}
+		if err = imaging.Save(dst, job.dstFilePath); err != nil {
+			prettyDebug("Error occurred while saving resized photo (%s): %v", job.dstFilePath, err)
+			return err
+		}
+		prettyDebug("%s: Resizing completed", job.photo.RawFilename(job.size))
+	} else {
+		// No need to ressize for original photos. Just point the dst to the src.
+		job.dstFilePath = job.srcFilePath
+	}
+	return nil
 }
 
-func syncUploadTask(ctx context.Context, errc chan<- error, client provider.Client, stream <-chan albumSyncJob) <-chan albumSyncJob {
-	out := make(chan albumSyncJob)
-	go func() {
-		defer close(out)
-		for job := range stream {
-			r, err := os.Open(job.dstFilePath)
-			if err != nil {
-				errc <- err
-				continue
-			}
-			defer func() {
-				if err := r.Close(); err != nil {
-					errc <- err
-				}
-			}()
-			prettyDebug("%s: Uploading started", job.photo.RawFilename(job.size))
-			_, err = client.UploadFile(ctx, job.photo.RawFilename(job.size), r)
-			if err != nil {
-				errc <- err
-				continue
-			}
-			prettyDebug("%s: Uploading completed", job.photo.RawFilename(job.size))
-			select {
-			case <-ctx.Done():
-				prettyDebug("upload pipeline task breaking because expired")
-				break
-			case out <- job:
-			}
+func syncUploadTask(ctx context.Context, client provider.Client, job *albumSyncJob) error {
+	r, err := os.Open(job.dstFilePath)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err := r.Close(); err != nil {
+			prettyError("Encountered error while trying to close file: %v", err)
 		}
 	}()
-	return out
+	prettyDebug("%s: Uploading started", job.photo.RawFilename(job.size))
+	_, err = client.UploadFile(ctx, job.photo.RawFilename(job.size), r)
+	if err != nil {
+		prettyDebug("Error occurred while uploading to storage: %v", err)
+		return err
+	}
+	prettyDebug("%s: Uploading completed", job.photo.RawFilename(job.size))
+	return nil
 }
 
-func syncCleanupTask(ctx context.Context, errc chan<- error, stream <-chan albumSyncJob) <-chan albumSyncJob {
-	out := make(chan albumSyncJob)
-	go func() {
-		defer close(out)
-		for job := range stream {
-			if job.size != state.PhotoSizeTypeOriginal { // Only remove an image if it has a custom w/h. Otherwise, it's the original.
-				prettyDebug("%s: Removing", job.dstFilePath)
-				if err := os.RemoveAll(path.Dir(job.dstFilePath)); err != nil {
-					errc <- err
-					continue
-				}
-			}
-			select {
-			case <-ctx.Done():
-				prettyDebug("upload pipeline task breaking because expired")
-				break
-			case out <- job:
-			}
+func syncCleanupTask(ctx context.Context, job *albumSyncJob) error {
+	if job.size != state.PhotoSizeTypeOriginal { // Only remove an image if it has a custom w/h. Otherwise, it's the original.
+		prettyDebug("%s: Removing", job.dstFilePath)
+		if err := os.RemoveAll(path.Dir(job.dstFilePath)); err != nil {
+			return err
 		}
-	}()
-	return out
+	}
+	return nil
 }
 
 func syncPrep(files []string, st state.State, a state.Album) ([]albumSyncJob, []albumSyncJob, error) {
@@ -209,10 +171,11 @@ func syncPrep(files []string, st state.State, a state.Album) ([]albumSyncJob, []
 		}
 	}
 	for _, hash := range a.Photos {
-		if photo, exists := preExistingHash[hash]; !exists {
+		if _, exists := preExistingHash[hash]; !exists {
 			for _, size := range state.GetPhotoSizeTypes() {
+				photo := st.GetPhoto(hash)
 				forRemoval = append(forRemoval, albumSyncJob{
-					photo:  photo,
+					photo:  *photo,
 					remove: true,
 					size:   size,
 				})
@@ -282,21 +245,18 @@ func syncRun(ctx context.Context, client provider.Client, album state.Album, st 
 		}
 		go func(j albumSyncJob) {
 			defer sem.Release(1)
-			jobStream := make(chan albumSyncJob, 1)
-			jobStream <- j
-			prettyDebug("%s: Processing started", j.photo.Name)
-			stream := syncCleanupTask(
-				ctx,
-				errc,
-				syncUploadTask(
-					ctx,
-					errc,
-					client,
-					syncResizeTask(ctx, errc, jobStream),
-				))
-			select {
-			case job := <-stream:
-				prettyDebug("%s: Processing completed", job.photo.Name)
+			job := &j
+			if err := syncResizeTask(ctx, job); err != nil {
+				mu.Lock()
+				errors = append(errors, err)
+				mu.Unlock()
+				return
+			}
+			if err := syncUploadTask(ctx, client, job); err != nil {
+				mu.Lock()
+				errors = append(errors, err)
+				mu.Unlock()
+			} else {
 				// Only the original size photos need to be persisted.
 				if job.size == state.PhotoSizeTypeOriginal {
 					mu.Lock()
@@ -304,7 +264,11 @@ func syncRun(ctx context.Context, client provider.Client, album state.Album, st 
 					st = st.AddPhotoToAlbum(album, job.photo)
 					mu.Unlock()
 				}
-				break
+			}
+			if err := syncCleanupTask(ctx, job); err != nil {
+				mu.Lock()
+				errors = append(errors, err)
+				mu.Unlock()
 			}
 		}(j)
 	}
